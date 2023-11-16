@@ -1,16 +1,19 @@
-
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import time
 from glob import glob
-
+import datetime
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
 from data import DriveDataset
 from model import build_unet
+from FCN import FCN
 from loss import DiceLoss, DiceBCELoss
 from utils import seeding, create_dir, epoch_time
+from gwd import gwDistance
+
 
 def train(model, loader, optimizer, loss_fn, device):
     epoch_loss = 0.0
@@ -23,6 +26,7 @@ def train(model, loader, optimizer, loss_fn, device):
         optimizer.zero_grad()
         y_pred = model(x)
         loss = loss_fn(y_pred, y)
+        # gwd = loss_gwd(y_pred,y)
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
@@ -67,10 +71,13 @@ if __name__ == "__main__":
     H = 512
     W = 512
     size = (H, W)
-    batch_size = 2
+    batch_size = 1
     num_epochs = 50
     lr = 1e-4
-    checkpoint_path = "files/checkpoint.pth"
+
+    now = datetime.datetime.now()
+    formatted_time = now.strftime("%Y%m%d%H%M")
+    checkpoint_path = "files/FCN"+str(formatted_time)+".pth"
 
     """ Dataset and loader """
     train_dataset = DriveDataset(train_x, train_y)
@@ -91,13 +98,13 @@ if __name__ == "__main__":
     )
 
     device = torch.device('cuda')   ## GTX 1060 6GB
-    model = build_unet()
+    # model = build_unet()
+    model = FCN()
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, verbose=True)
     loss_fn = DiceBCELoss()
-
     """ Training the model """
     best_valid_loss = float("inf")
 
